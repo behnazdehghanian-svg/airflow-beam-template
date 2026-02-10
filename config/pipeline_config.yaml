@@ -1,0 +1,24 @@
+dag:
+  retries: 3
+  retry_delay: 1  # minutes
+  schedule_interval: "0 2 * * *"
+  tags: ["beam", "etl"]
+
+project:
+  id: your-gcp-project
+
+gcs:
+  source_bucket: your-bucket
+  source_folder: input
+
+beam_orders:
+  python_file: /home/airflow/gcs/dags/beam_pipeline_orders.py
+  temp_location: /tmp
+  staging_location: /tmp/staging
+  python_version: python3
+
+beam_customers:
+  python_file: /home/airflow/gcs/dags/beam_pipeline_customers.py
+  temp_location: /tmp
+  staging_location: /tmp/staging
+  python_version: python3

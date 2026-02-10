@@ -1,0 +1,3 @@
+{'customer_id': 'C1', 'name': 'John Doe', 'email': 'john@example.com'}
+{'customer_id': 'C2', 'name': 'Jane Smith', 'email': 'jane@example.com'}
+{'customer_id': 'C3', 'name': 'Bob Lee', 'email': 'bob@example.com'}

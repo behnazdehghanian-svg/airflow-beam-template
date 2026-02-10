@@ -1,0 +1,3 @@
+{'order_id': 'O1', 'customer_id': 'C1', 'amount': 100.0, 'order_date': '2026-02-10'}
+{'order_id': 'O2', 'customer_id': 'C2', 'amount': 200.0, 'order_date': '2026-02-11'}
+{'order_id': 'O3', 'customer_id': 'C3', 'amount': 150.0, 'order_date': '2026-02-12'}
