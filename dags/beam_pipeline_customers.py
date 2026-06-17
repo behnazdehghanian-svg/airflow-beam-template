@@ -1,60 +1,76 @@
+import argparse
+import logging
+
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--project", required=True)
-parser.add_argument("--input_path", required=True)
-parser.add_argument("--bq_dataset", required=True)
-parser.add_argument("--bq_table", required=True)
-parser.add_argument("--bq_schema", required=True)
-parser.add_argument("--temp_location", required=True)
-parser.add_argument("--staging_location", required=True)
-parser.add_argument("--execution_ts", required=True)
-args, beam_args = parser.parse_known_args()
+log = logging.getLogger(__name__)
 
-options = PipelineOptions(
-    beam_args,
-    project=args.project,
-    temp_location=args.temp_location,
-    staging_location=args.staging_location,
-    save_main_session=True
-)
+EXPECTED_FIELD_COUNT = 3
+
 
 def transform_customer(row):
     fields = row.split(",")
-    if len(fields) != 3:
+    if len(fields) != EXPECTED_FIELD_COUNT:
+        log.warning("Skipping malformed row: %r", row)
         return None
+
     customer_id, name, email = fields
     return {
         "customer_id": customer_id.strip(),
         "name": name.strip(),
-        "email": email.strip()
+        "email": email.strip(),
     }
 
-# with beam.Pipeline(options=options) as p:
-#     (
-#         p
-#         | "ReadCSV" >> beam.io.ReadFromText(args.input_path, skip_header_lines=1)
-#         | "Transform" >> beam.Map(transform_customer)
-#         | "FilterNone" >> beam.Filter(lambda x: x is not None)
-#         | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
-#             table=f"{args.project}:{args.bq_dataset}.{args.bq_table}",
-#             schema=args.bq_schema,
-#             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-#             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
-#         )
-#     )
-# -------------------------
-# Beam pipeline (local test version)
-# -------------------------
-with beam.Pipeline(options=options) as p:
-    (
+
+def build_pipeline(p, args, local_mode=False):
+    records = (
         p
         | "ReadCSV" >> beam.io.ReadFromText(args.input_path, skip_header_lines=1)
         | "Transform" >> beam.Map(transform_customer)
-        | "FilterNone" >> beam.Filter(lambda x: x is not None)
-        | "WriteToLocalFile" >> beam.io.WriteToText(
+        | "FilterInvalid" >> beam.Filter(lambda x: x is not None)
+    )
+
+    if local_mode:
+        records | "WriteToLocalFile" >> beam.io.WriteToText(
             f"test_data/{args.bq_table}_output.txt"
         )
+    else:
+        records | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
+            table=f"{args.project}:{args.bq_dataset}.{args.bq_table}",
+            schema=args.bq_schema,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+        )
+    return records
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--project", required=True)
+    parser.add_argument("--input_path", required=True)
+    parser.add_argument("--bq_dataset", required=True)
+    parser.add_argument("--bq_table", required=True)
+    parser.add_argument("--bq_schema", required=True)
+    parser.add_argument("--temp_location", required=True)
+    parser.add_argument("--staging_location", required=True)
+    parser.add_argument("--execution_ts", required=True)
+    parser.add_argument("--local_mode", action="store_true")
+    return parser.parse_known_args()
+
+
+if __name__ == "__main__":
+    args, beam_args = parse_args()
+
+    options = PipelineOptions(
+        beam_args,
+        project=args.project,
+        temp_location=args.temp_location,
+        staging_location=args.staging_location,
+        save_main_session=True,
     )
+
+    log.info("Starting customers pipeline. Execution timestamp: %s", args.execution_ts)
+
+    with beam.Pipeline(options=options) as p:
+        build_pipeline(p, args, local_mode=args.local_mode)

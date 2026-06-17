@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Environment variables - never push this
+.env
+
+# Test output
+test_data/*_output.txt*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
